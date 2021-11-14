@@ -1,0 +1,101 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    environment: stage
+
+    steps:
+      - name: "Init repository"
+        uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: "Install dependencies"
+        run: npm install
+
+      - name: "Build app"
+        run: npm run build
+
+      - name: "Run tests"
+        run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
+
+      - name: 'Install ruby'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.6
+
+      - name: 'Install DPL'
+        run: gem install dpl
+
+      - name: "Deploy to Prepod Vercel"
+          run: |
+            prodRun=""
+            if [[ ${GITHUB_REF} == "refs/heads/main" ]]; then
+              prodRun="--prod"
+            fi
+
+            npx vercel --token ${VERCEL_TOKEN} $prodRun
+          env:
+            VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+            VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+            VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+
+  prod:
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+      - name: "Init repository"
+        uses: actions/checkout@v2
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: "Install dependencies"
+        run: npm install
+
+      - name: "Build app"
+        run: npm run build
+
+      - name: "Run tests"
+        run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
+
+      - name: 'Install ruby'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.6
+
+      - name: 'Install DPL'
+        run: gem install dpl
+
+      - name: "Deploy to Vercel"
+          run: |
+            prodRun=""
+            if [[ ${GITHUB_REF} == "refs/heads/main" ]]; then
+              prodRun="--prod"
+            fi
+
+            npx vercel --token ${VERCEL_TOKEN} $prodRun
+          env:
+            VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+            VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+            VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

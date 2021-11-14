@@ -1,101 +1,53 @@
-name: CI/CD
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+name: Deploy Vercel
+on: [ push, pull_request ]
 jobs:
-  stage:
+  vercel:
     runs-on: ubuntu-latest
-    environment: stage
-
     steps:
-      - name: "Init repository"
+      - name: 'Checkout Code'
         uses: actions/checkout@v2
 
-      - uses: actions/cache@v2
+      - name: 'Cache Dependencies'
+        uses: actions/cache@v1
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          restore-keys: ${{ runner.os }}-node-
 
-      - name: "Setup Node"
+      - name: 'Setup Node@14'
         uses: actions/setup-node@v2
         with:
           node-version: '14'
 
-      - name: "Install dependencies"
-        run: npm install
+      - name: 'Build'
+        run: |
+          npm install --frozen-lockfile
+          npm run bundle
 
-      - name: "Build app"
-        run: npm run build
+      - name: 'Run Tests Locally'
+        run: npm run test
 
-      - name: "Run tests"
-        run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
-
-      - name: 'Install ruby'
-        uses: ruby/setup-ruby@v1
+      - name: 'Deploy to Staging'
+        id: deploy-vercel-staging
+        uses: amondnet/vercel-action@v20
         with:
-          ruby-version: 2.6
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_TL_ENGINE }}
+          scope: ${{ secrets.VERCEL_ORG_ID }}
 
-      - name: 'Install DPL'
-        run: gem install dpl
+      - name: 'Run Tests Against Vercel'
+        env:
+          VERCEL_URL: ${{ steps.deploy-vercel-staging.outputs.preview-url }}
+        run: npm run test
 
-      - name: "Deploy to Prepod Vercel"
-          run: |
-            prodRun=""
-            if [[ ${GITHUB_REF} == "refs/heads/main" ]]; then
-              prodRun="--prod"
-            fi
-
-            npx vercel --token ${VERCEL_TOKEN} $prodRun
-          env:
-            VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-            VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-            VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-
-  prod:
-    runs-on: ubuntu-latest
-    environment: prod
-
-    steps:
-      - name: "Init repository"
-        uses: actions/checkout@v2
-
-      - name: "Setup Node"
-        uses: actions/setup-node@v2
+      - name: 'Deploy to Production'
+        uses: amondnet/vercel-action@v20
+        id: deploy-vercel-production
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
-          node-version: '14'
-
-      - name: "Install dependencies"
-        run: npm install
-
-      - name: "Build app"
-        run: npm run build
-
-      - name: "Run tests"
-        run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
-
-      - name: 'Install ruby'
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 2.6
-
-      - name: 'Install DPL'
-        run: gem install dpl
-
-      - name: "Deploy to Vercel"
-          run: |
-            prodRun=""
-            if [[ ${GITHUB_REF} == "refs/heads/main" ]]; then
-              prodRun="--prod"
-            fi
-
-            npx vercel --token ${VERCEL_TOKEN} $prodRun
-          env:
-            VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-            VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-            VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_TL_ENGINE }}
+          vercel-args: '--prod'
+          scope: ${{ secrets.VERCEL_ORG_ID }}

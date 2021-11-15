@@ -12,9 +12,9 @@
 ```npm start```
 
 # How it works
-- When you push something on a branch that is not ```main``` the pipeline process multiple check and deploy a preproduction website.
+- When you push something on a branch that is not ```main``` the pipeline process multiple check and deploy a preproduction website
 - If you push on ```main``` the pipeline will automatically deploy a production website
-  - I'm using Vercel as host.
+- I'm using Vercel as host
 
 # Explanation in French
 - J'ai décider d'utiliser Vercel pour ça simplicité et son intégration avec Github. J'ai notamment utilisé le projet d'example d'une boutique afin de réalisé ce projet. Afin de configurer Vercel j'ai du générer trois secrets dans github pour la clé API, le nom du projet générer avec la commande ```npm install -g vercel``` puis après avoir suivis les instructions j'ai utilisé cette commande afin de générer un environement Vercel `vercel`.
